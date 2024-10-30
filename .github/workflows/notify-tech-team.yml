@@ -1,0 +1,18 @@
+name: Notify Tech Team After First Approval
+
+on:
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  notify-tech-team:
+    runs-on: ubuntu-latest
+    if: |
+      github.event.review.state == 'approved' && 
+      github.event.pull_request.requested_reviewers.length < 2
+    steps:
+      - name: Request review from tech team
+        uses: reviewdog/action-request-review@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          team_reviewers: "tech_team"  # your tech team name here
