@@ -22,3 +22,8 @@ jobs:
               pull_number: context.payload.pull_request.number,
               team_reviewers: ['tech_team']  // replace with your actual team name
             });
+            
+      - name: Mark job as complete
+        run: |
+          echo "Job completed successfully"
+          exit 0
