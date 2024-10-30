@@ -47,6 +47,3 @@ jobs:
               description: approvalCount < 2 ? 'Added tech_team as reviewer' : 'Enough approvals present',
               context: 'Review Check'
             });
-
-      - name: Mark job as complete
-        run: echo "::set-output name=status::completed"
