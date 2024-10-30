@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     if: |
       github.event.review.state == 'approved' && 
-      github.event.pull_request.requested_reviewers.length < 2
+      github.event.pull_request.approved_reviews_count < 2
     steps:
       - name: Request review from tech team
         uses: actions/github-script@v7
