@@ -6,7 +6,7 @@ on:
 
 jobs:
   notify-tech-team:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     if: |
       github.event.review.state == 'approved' && 
       !contains(github.event.pull_request.requested_teams[*].slug, 'tech_team')
