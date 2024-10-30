@@ -9,21 +9,31 @@ jobs:
     runs-on: ubuntu-latest
     if: |
       github.event.review.state == 'approved' && 
-      github.event.pull_request.approved_reviews_count < 2
+      !contains(github.event.pull_request.requested_teams[*].slug, 'tech_team')
     steps:
       - name: Request review from tech team
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.PR_TOKEN }}
           script: |
-            await github.rest.pulls.requestReviewers({
+            // First get current reviews to count approvals
+            const { data: reviews } = await github.rest.pulls.listReviews({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              pull_number: context.payload.pull_request.number,
-              team_reviewers: ['tech_team']  // replace with your actual team name
+              pull_number: context.payload.pull_request.number
             });
             
-      - name: Mark job as complete
-        run: |
-          echo "Job completed successfully"
-          exit 0
+            const approvalCount = reviews.filter(review => review.state === 'APPROVED').length;
+            
+            if (approvalCount < 2) {
+              console.log('Adding tech_team as reviewer...');
+              await github.rest.pulls.requestReviewers({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.pull_request.number,
+                team_reviewers: ['tech_team']
+              });
+              console.log('Tech team review requested successfully');
+            } else {
+              console.log('Already has enough approvals, skipping');
+            }
