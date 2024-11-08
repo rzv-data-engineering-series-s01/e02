@@ -34,7 +34,7 @@ jobs:
             console.log('Approval review detected, continuing...');
             core.setOutput('should_continue', 'true');
 
-      - name: Get active approvals
+      - name: Get active approvals and PR files
         if: steps.initial-check.outputs.should_continue == 'true'
         id: get-approvals
         uses: actions/github-script@v7
@@ -44,6 +44,17 @@ jobs:
             const pr = context.payload.pull_request;
             console.log('Getting approvals for PR:', pr.number);
             
+            // Get PR files
+            const { data: prFiles } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number
+            });
+            
+            const prFilePaths = prFiles.map(file => file.filename);
+            console.log('PR files:', prFilePaths);
+            
+            // Get reviews
             const { data: reviews } = await github.rest.pulls.listReviews({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -60,6 +71,8 @@ jobs:
               .map(review => review.user.login);
             
             console.log('Active approvals:', activeApprovals);
+            
+            core.setOutput('files', JSON.stringify(prFilePaths));
             core.setOutput('approvals', JSON.stringify(activeApprovals));
 
       - name: Read review requirement files
@@ -71,33 +84,54 @@ jobs:
           script: |
             console.log('Reading CODEOWNERS and CODEFACILITATORS files');
             
-            const { data: codeowners } = await github.rest.repos.getContent({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              path: '.github/CODEOWNERS'
-            });
+            const prFiles = JSON.parse(core.getInput('files'));
             
-            const { data: facilitators } = await github.rest.repos.getContent({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              path: '.github/CODEFACILITATORS'
-            });
+            // Function to parse owners file and get relevant owners
+            const parseOwnersFile = async (path) => {
+              const { data: file } = await github.rest.repos.getContent({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                path: path
+              });
+              
+              const content = Buffer.from(file.content, 'base64').toString();
+              const relevantOwners = new Set();
+              
+              content.split('\n').forEach(line => {
+                // Skip comments and empty lines
+                if (line.startsWith('#') || !line.trim()) return;
+                
+                // Split into pattern and owners
+                const [pattern, ...owners] = line.trim().split(/\s+/);
+                
+                // Check if any PR files match this pattern
+                const matchesPattern = prFiles.some(file => {
+                  // Convert glob pattern to regex
+                  const regexPattern = pattern
+                    .replace(/\*/g, '[^/]*')
+                    .replace(/\?/g, '[^/]');
+                  return new RegExp(`^${regexPattern}$`).test(file);
+                });
+                
+                if (matchesPattern) {
+                  owners.forEach(owner => relevantOwners.add(owner));
+                }
+              });
+              
+              return Array.from(relevantOwners);
+            };
             
-            const codeownersContent = Buffer.from(codeowners.content, 'base64').toString();
-            const facilitatorsContent = Buffer.from(facilitators.content, 'base64').toString();
-            
-            // Extract usernames/teams from the files
-            const codeownersUsers = codeownersContent.match(/@[\w-]+/g) || [];
-            const facilitatorsUsers = facilitatorsContent.match(/@[\w-]+/g) || [];
+            const codeowners = await parseOwnersFile('.github/CODEOWNERS');
+            const facilitators = await parseOwnersFile('.github/CODEFACILITATORS');
             
             console.log('Required reviewers:', {
-              codeowners: codeownersUsers,
-              facilitators: facilitatorsUsers
+              codeowners,
+              facilitators
             });
             
             core.setOutput('requirements', JSON.stringify({
-              codeowners: codeownersUsers,
-              facilitators: facilitatorsUsers
+              codeowners,
+              facilitators
             }));
 
       - name: Check existing approvals
@@ -105,12 +139,13 @@ jobs:
         id: check-existing
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const activeApprovals = JSON.parse(core.getInput('approvals'));
             const requirements = JSON.parse(core.getInput('requirements'));
             
             console.log('Checking for existing facilitator/tech-team approvals');
+            console.log('Active approvals:', activeApprovals);
+            console.log('Requirements:', requirements);
             
             // Check for facilitator approvals
             const hasFacilitatorApproval = activeApprovals.some(user => 
@@ -132,12 +167,13 @@ jobs:
         id: check-status
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const activeApprovals = JSON.parse(core.getInput('approvals'));
             const requirements = JSON.parse(core.getInput('requirements'));
             
             console.log('Checking approval status');
+            console.log('Active approvals:', activeApprovals);
+            console.log('Requirements:', requirements);
             
             // Check if all required CODEOWNERS have approved
             const hasAllCodeownersApproval = requirements.codeowners.every(owner => 
@@ -163,7 +199,6 @@ jobs:
         if: steps.check-existing.outputs.should_continue == 'true'
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const pr = context.payload.pull_request;
             const status = JSON.parse(core.getInput('status'));
