@@ -74,8 +74,14 @@ jobs:
               team.slug.toLowerCase().includes('owner') // Made case-insensitive
             ).length;
             
+            // Count required CODEFACILITATORS reviews
+            const facilitatorsTeams = reviewRequests.teams.filter(team => 
+              team.slug.toLowerCase().includes('facilitators') // Made case-insensitive
+            ).length;
+            
             console.log('Review status:', {
               required_codeowners: codeownersTeams,
+              required_facilitators: facilitatorsTeams,
               current_approvals: activeApprovals.length
             });
             
@@ -86,7 +92,7 @@ jobs:
             console.log('Tech team status:', { hasTechTeam });
             
             // If we have all CODEOWNERS approvals but no tech_team yet
-            if (activeApprovals.length >= codeownersTeams && !hasTechTeam) {
+            if (activeApprovals.length >= codeownersTeams && !facilitatorsTeams && !hasTechTeam) {
               console.log('Adding ready-for-facilitators label');
               try {
                 await github.rest.issues.addLabels({
@@ -97,6 +103,22 @@ jobs:
                 });
               } catch (error) {
                 console.error('Failed to add facilitators label:', error);
+                throw error;
+              }
+            }
+            
+            // If we have all needed approvals but no tech_team yet
+            if (activeApprovals.length >= codeownersTeams + facilitatorsTeams && !hasTechTeam) {
+              console.log('Adding ready-for-tech-review label');
+              try {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  labels: ['ready-for-tech-review']
+                });
+              } catch (error) {
+                console.error('Failed to add tech-review label:', error);
                 throw error;
               }
             }
