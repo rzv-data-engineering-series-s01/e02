@@ -15,7 +15,7 @@ jobs:
     steps:    
       - name: "Assign Code Facilitators to PR"
         id: add-facilitators
-        uses: 0xtekgrinder/codefacilitators@v1.0.0
+        uses: LexxaRRioo/codefacilitators@debugging-locally-in-github-actions
         continue-on-error: true
         with:
           token: ${{ secrets.PR_TOKEN }}
