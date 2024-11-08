@@ -1,7 +1,7 @@
 name: PR Review Flow -- process labels
 
 on:
-  pull_request:
+  pull_request_target:
     types: [ labeled ]
 
 permissions:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   add-facilitators:
-    if: contains(github.event.pull_request.labels.*.name, 'ready-for-facilitators')
+    if: github.event.label.name == 'ready-for-facilitators'
     runs-on: self-hosted
     steps:    
       - name: "Assign Code Facilitators to PR"
@@ -22,7 +22,7 @@ jobs:
           file: .github/CODEFACILITATORS
           
   add-tech-team:
-    if: contains(github.event.pull_request.labels.*.name, 'ready-for-tech-review')
+    if: github.event.label.name == 'ready-for-tech-review'
     runs-on: self-hosted
     steps:    
       - name: Assign tech team to PR
