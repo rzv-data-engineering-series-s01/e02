@@ -1,4 +1,4 @@
-name: PR Review Flow
+name: PR Review Flow -- set labels
 
 on:
   pull_request_review:
