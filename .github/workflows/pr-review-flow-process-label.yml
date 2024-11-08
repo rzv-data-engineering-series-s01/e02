@@ -20,6 +20,7 @@ jobs:
         with:
           token: ${{ secrets.PR_TOKEN }}
           file: .github/CODEFACILITATORS
+          add_groups_directly: true
           
   add-tech-team:
     if: contains(github.event.pull_request.labels.*.name, 'ready-for-tech-review')
