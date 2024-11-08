@@ -81,6 +81,11 @@ jobs:
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Add this to specify which inputs we expect
+          inputs: |
+            {
+              "files": "${{ steps.get-approvals.outputs.files }}"
+            }
           script: |
             console.log('Reading CODEOWNERS and CODEFACILITATORS files');
             
@@ -139,6 +144,12 @@ jobs:
         id: check-existing
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          inputs: |
+            {
+              "approvals": "${{ steps.get-approvals.outputs.approvals }}",
+              "requirements": "${{ steps.read-files.outputs.requirements }}"
+            }
           script: |
             const activeApprovals = JSON.parse(core.getInput('approvals'));
             const requirements = JSON.parse(core.getInput('requirements'));
@@ -167,6 +178,12 @@ jobs:
         id: check-status
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          inputs: |
+            {
+              "approvals": "${{ steps.get-approvals.outputs.approvals }}",
+              "requirements": "${{ steps.read-files.outputs.requirements }}"
+            }
           script: |
             const activeApprovals = JSON.parse(core.getInput('approvals'));
             const requirements = JSON.parse(core.getInput('requirements'));
