@@ -1,0 +1,45 @@
+name: PR Review Flow
+
+on:
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  pull-requests: write    # For managing reviews
+  issues: write          # For labels
+
+jobs:
+  add-facilitators:
+    if: contains(github.event.pull_request.labels.*.name, 'ready-for-facilitators')
+    runs-on: self-hosted
+    steps:    
+      - name: "Assign Code Facilitators to PR"
+        id: add-facilitators
+        uses: 0xtekgrinder/codefacilitators@v1
+        continue-on-error: true
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          file: .github/CODEFACILITATORS
+          
+  add-tech-team:
+    if: contains(github.event.pull_request.labels.*.name, 'ready-for-tech-review')
+    runs-on: self-hosted
+    steps:    
+      - name: Assign tech team to PR
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            console.log('Adding tech team review');
+            try {
+              // Add tech_team review
+              await github.rest.pulls.requestReviewers({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.pull_request.number,
+                team_reviewers: ['tech_team']
+              });
+            } catch (error) {
+              console.error('Failed to add tech team as reviewer: ', error);
+              throw error;
+            }
