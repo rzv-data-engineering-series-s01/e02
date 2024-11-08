@@ -15,7 +15,7 @@ jobs:
     steps:    
       - name: "Assign Code Facilitators to PR"
         id: add-facilitators
-        uses: LexxaRRioo/codefacilitators@main
+        uses: LexxaRRioo/codefacilitators@actually-add-debugging-with-rebuild
         continue-on-error: true
         with:
           token: ${{ secrets.PR_TOKEN }}
