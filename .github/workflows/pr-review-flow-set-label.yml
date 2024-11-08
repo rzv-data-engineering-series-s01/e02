@@ -22,22 +22,27 @@ jobs:
           script: |
             const review = context.payload.review;
             
+            console.log('Current review state:', review.state);
+            
             // Skip if review is not approval
             if (review.state !== 'approved') {
               console.log('Skipping: Not an approval review');
-              return 'skip';
+              core.setOutput('should_continue', 'false');
+              return;
             }
             
-            return 'continue';
+            console.log('Approval review detected, continuing...');
+            core.setOutput('should_continue', 'true');
 
       - name: Get active approvals
-        if: steps.initial-check.outputs.result == 'continue'
+        if: steps.initial-check.outputs.should_continue == 'true'
         id: get-approvals
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const pr = context.payload.pull_request;
+            console.log('Getting approvals for PR:', pr.number);
             
             const { data: reviews } = await github.rest.pulls.listReviews({
               owner: context.repo.owner,
@@ -54,15 +59,18 @@ jobs:
               .filter(review => review.state === 'approved')
               .map(review => review.user.login);
             
-            return activeApprovals;
+            console.log('Active approvals:', activeApprovals);
+            core.setOutput('approvals', JSON.stringify(activeApprovals));
 
       - name: Read review requirement files
-        if: steps.initial-check.outputs.result == 'continue'
+        if: steps.initial-check.outputs.should_continue == 'true'
         id: read-files
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
+            console.log('Reading CODEOWNERS and CODEFACILITATORS files');
+            
             const { data: codeowners } = await github.rest.repos.getContent({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -82,45 +90,54 @@ jobs:
             const codeownersUsers = codeownersContent.match(/@[\w-]+/g) || [];
             const facilitatorsUsers = facilitatorsContent.match(/@[\w-]+/g) || [];
             
-            return {
+            console.log('Required reviewers:', {
               codeowners: codeownersUsers,
               facilitators: facilitatorsUsers
-            };
+            });
+            
+            core.setOutput('requirements', JSON.stringify({
+              codeowners: codeownersUsers,
+              facilitators: facilitatorsUsers
+            }));
 
       - name: Check existing approvals
-        if: steps.initial-check.outputs.result == 'continue'
+        if: steps.initial-check.outputs.should_continue == 'true'
         id: check-existing
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const activeApprovals = JSON.parse(steps.get-approvals.outputs.result);
-            const requirements = JSON.parse(steps.read-files.outputs.result);
+            const activeApprovals = JSON.parse(core.getInput('approvals'));
+            const requirements = JSON.parse(core.getInput('requirements'));
+            
+            console.log('Checking for existing facilitator/tech-team approvals');
             
             // Check for facilitator approvals
             const hasFacilitatorApproval = activeApprovals.some(user => 
               requirements.facilitators.includes('@' + user)
             );
             
-            // Check for tech-team approvals
-            const hasTechTeamApproval = false; // We'll implement this in next step
+            console.log('Has facilitator approval:', hasFacilitatorApproval);
             
-            if (hasFacilitatorApproval || hasTechTeamApproval) {
-              console.log('Already has facilitator or tech-team approval, skipping');
-              return 'skip';
+            if (hasFacilitatorApproval) {
+              console.log('Already has facilitator approval, skipping further checks');
+              core.setOutput('should_continue', 'false');
+              return;
             }
             
-            return 'continue';
+            core.setOutput('should_continue', 'true');
 
       - name: Check approval status
-        if: steps.check-existing.outputs.result == 'continue'
+        if: steps.check-existing.outputs.should_continue == 'true'
         id: check-status
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const activeApprovals = JSON.parse(steps.get-approvals.outputs.result);
-            const requirements = JSON.parse(steps.read-files.outputs.result);
+            const activeApprovals = JSON.parse(core.getInput('approvals'));
+            const requirements = JSON.parse(core.getInput('requirements'));
+            
+            console.log('Checking approval status');
             
             // Check if all required CODEOWNERS have approved
             const hasAllCodeownersApproval = requirements.codeowners.every(owner => 
@@ -132,19 +149,26 @@ jobs:
               activeApprovals.some(user => '@' + user === facilitator)
             );
             
-            return {
+            console.log('Approval status:', {
               codeownersApproved: hasAllCodeownersApproval,
               facilitatorsApproved: hasAllFacilitatorsApproval
-            };
+            });
+            
+            core.setOutput('status', JSON.stringify({
+              codeownersApproved: hasAllCodeownersApproval,
+              facilitatorsApproved: hasAllFacilitatorsApproval
+            }));
 
       - name: Update labels
-        if: steps.check-existing.outputs.result == 'continue'
+        if: steps.check-existing.outputs.should_continue == 'true'
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const pr = context.payload.pull_request;
-            const status = JSON.parse(steps.check-status.outputs.result);
+            const status = JSON.parse(core.getInput('status'));
+            
+            console.log('Updating labels based on status:', status);
             
             if (status.codeownersApproved && !status.facilitatorsApproved) {
               console.log('Adding ready-for-facilitators label');
@@ -158,7 +182,6 @@ jobs:
             
             if (status.codeownersApproved && status.facilitatorsApproved) {
               console.log('Updating labels for tech-team review');
-              // Remove facilitators label if it exists
               try {
                 await github.rest.issues.removeLabel({
                   owner: context.repo.owner,
@@ -166,15 +189,16 @@ jobs:
                   issue_number: pr.number,
                   name: 'ready-for-facilitators'
                 });
+                console.log('Removed ready-for-facilitators label');
               } catch (error) {
                 console.log('No facilitators label to remove');
               }
               
-              // Add tech-team label
               await github.rest.issues.addLabels({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: pr.number,
                 labels: ['ready-for-tech-review']
               });
+              console.log('Added ready-for-tech-review label');
             }
