@@ -22,8 +22,15 @@ jobs:
             const pr = context.payload.pull_request;
             const review = context.payload.review;
             
+            console.log('Processing review:', {
+              pr_number: pr.number,
+              reviewer: review.user.login,
+              review_state: review.state
+            });
+            
             // Skip if review is not approval
             if (review.state !== 'APPROVED') {
+              console.log('Skipping: Not an approval review');
               return;
             }
             
@@ -34,12 +41,23 @@ jobs:
               pull_number: pr.number
             });
             
+            console.log('Current review requests:', {
+              requested_users: reviewRequests.users.map(u => u.login),
+              requested_teams: reviewRequests.teams.map(t => t.slug)
+            });
+            
             // Get all reviews
             const { data: reviews } = await github.rest.pulls.listReviews({
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: pr.number
             });
+            
+            console.log('All reviews:', reviews.map(r => ({
+              user: r.user.login,
+              state: r.state,
+              submitted_at: r.submitted_at
+            })));
             
             // Get active approvals (last review from each user)
             const latestReviews = new Map();
@@ -49,26 +67,38 @@ jobs:
             const activeApprovals = Array.from(latestReviews.values())
               .filter(review => review.state === 'APPROVED');
             
+            console.log('Active approvals:', activeApprovals.map(r => r.user.login));
+            
             // Count required CODEOWNERS reviews
             const codeownersTeams = reviewRequests.teams.filter(team => 
-              team.slug.includes('owner') // adjust pattern based on your team naming
+              team.slug.toLowerCase().includes('owner') // Made case-insensitive
             ).length;
             
-            console.log(`Required CODEOWNERS reviews: ${codeownersTeams}`);
+            console.log('Review status:', {
+              required_codeowners: codeownersTeams,
+              current_approvals: activeApprovals.length
+            });
             
             const hasTechTeam = reviewRequests.teams.some(team => 
-              team.slug === 'tech_team'
+              team.slug.toLowerCase() === 'tech_team' // Made case-insensitive
             );
+            
+            console.log('Tech team status:', { hasTechTeam });
             
             // If we have all CODEOWNERS approvals but no tech_team yet
             if (activeApprovals.length >= codeownersTeams && !hasTechTeam) {
-              // First try CODEFACILITATORS
-              await github.rest.issues.addLabels({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: pr.number,
-                labels: ['ready-for-facilitators']
-              });
+              console.log('Adding ready-for-facilitators label');
+              try {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  labels: ['ready-for-facilitators']
+                });
+              } catch (error) {
+                console.error('Failed to add facilitators label:', error);
+                throw error;
+              }
             }
 
   add-facilitators:
@@ -77,31 +107,39 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
       - name: "Assign Code Facilitators to PR"
         id: add-facilitators
         uses: 0xtekgrinder/codefacilitators@v1
         continue-on-error: true
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./github/CODEFACILITATORS
+          file: .github/CODEFACILITATORS
       
       - name: Add tech team
-        if: steps.add-facilitators.outcome == 'failure' || always()  # Add tech_team in any case
+        if: always()  # Simplified condition since we want this to run always
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            // Add tech_team review
-            await github.rest.pulls.requestReviewers({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: context.payload.pull_request.number,
-              team_reviewers: ['tech_team']
-            });
-            
-            await github.rest.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.payload.pull_request.number,
-              labels: ['ready-for-tech-review']
-            });
+            console.log('Adding tech team review');
+            try {
+              // Add tech_team review
+              await github.rest.pulls.requestReviewers({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.pull_request.number,
+                team_reviewers: ['tech_team']
+              });
+              
+              console.log('Adding ready-for-tech-review label');
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                labels: ['ready-for-tech-review']
+              });
+            } catch (error) {
+              console.error('Failed to add tech team or label:', error);
+              throw error;
+            }
