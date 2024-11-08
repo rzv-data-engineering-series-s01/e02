@@ -19,7 +19,7 @@ jobs:
         continue-on-error: true
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./github/CODEFACILITATORS
+          file: /.github/CODEFACILITATORS
           
   add-tech-team:
     if: contains(github.event.pull_request.labels.*.name, 'ready-for-tech-review')
@@ -30,33 +30,16 @@ jobs:
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            console.log('Debug: PR details', {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pr_number: context.payload.pull_request.number
-            });
-            
-            try {
-              // List teams in the org first
-              const { data: teams } = await github.rest.teams.list({
-                org: context.repo.owner
-              });
-              
-              console.log('Available teams:', teams.map(t => ({
-                slug: t.slug,
-                id: t.id,
-                name: t.name
-              })));
-              
+          script: |            
+            try {              
               await github.rest.pulls.requestReviewers({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 pull_number: context.payload.pull_request.number,
-                team_reviewers: ['tech_team']
+                team_reviewers: ['tech-team']
               });
-              
               console.log('Successfully added tech team as reviewer');
+              
             } catch (error) {
               console.error('Error details:', {
                 message: error.message,
