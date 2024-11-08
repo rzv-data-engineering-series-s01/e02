@@ -15,7 +15,7 @@ jobs:
     steps:    
       - name: "Assign Code Facilitators to PR"
         id: add-facilitators
-        uses: 0xtekgrinder/codefacilitators@v1
+        uses: 0xtekgrinder/codefacilitators@v1.0.0
         continue-on-error: true
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -31,15 +31,33 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             console.log('Adding tech team review');
+            // First, let's get the team ID
             try {
-              // Add tech_team review
+              const { data: team } = await github.rest.teams.getByName({
+                org: context.repo.owner,
+                team_slug: 'tech_team'
+              });
+              
+              console.log('Debug: Found team:', {
+                team_id: team.id,
+                team_name: team.name,
+                team_slug: team.slug
+              });
+              
+              // Now request review using team id
               await github.rest.pulls.requestReviewers({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 pull_number: context.payload.pull_request.number,
-                team_reviewers: ['tech_team']
+                team_reviewers: [team.slug]  // Using slug instead of name
               });
+              
+              console.log('Successfully added tech team as reviewer');
             } catch (error) {
-              console.error('Failed to add tech team as reviewer: ', error);
+              console.error('Error details:', {
+                message: error.message,
+                status: error.status,
+                response: error.response?.data
+              });
               throw error;
             }
