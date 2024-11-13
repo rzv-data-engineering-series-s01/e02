@@ -22,16 +22,14 @@ jobs:
           script: |
             const review = context.payload.review;
             
-            console.log('Current review state:', review.state);
-            
-            // Skip if review is not approval
+            core.info('🔄 Processing review...');
             if (review.state !== 'approved') {
-              console.log('Skipping: Not an approval review');
+              core.info('❌ Not an approval review, skipping');
               core.setOutput('should_continue', 'false');
               return;
             }
             
-            console.log('Approval review detected, continuing...');
+            core.info('✅ Approval detected');
             core.setOutput('should_continue', 'true');
 
       - name: Get active approvals and PR files
@@ -42,39 +40,33 @@ jobs:
           github-token: ${{ secrets.PR_TOKEN }}
           script: |
             const pr = context.payload.pull_request;
-            console.log('Getting approvals for PR:', pr.number);
             
-            // Get PR files
+            core.info('📁 Getting PR files and reviews...');
             const { data: prFiles } = await github.rest.pulls.listFiles({
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: pr.number
             });
             
-            const prFilePaths = prFiles.map(file => file.filename);
-            console.log('PR files:', prFilePaths);
-            
-            // Get reviews
             const { data: reviews } = await github.rest.pulls.listReviews({
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: pr.number
             });
-            console.log('reviews:', reviews)
-            // Get active approvals (last review from each user)
+
             const latestReviews = new Map();
             reviews.forEach(review => {
               latestReviews.set(review.user.login, review);
             });
-            console.log('latestReviews:', latestReviews);
+
             const activeApprovals = Array.from(latestReviews.values())
               .filter(review => review.state === 'APPROVED')
               .map(review => review.user.login);
             
-            console.log('Active approvals:', activeApprovals);
+            const prFilePaths = prFiles.map(file => file.filename);
             
+            core.info(`📋 Active approvers: ${activeApprovals.join(', ')}`);
             core.setOutput('files', JSON.stringify(prFilePaths));
-            console.log('Set files output:', JSON.stringify(prFilePaths));
             core.setOutput('approvals', JSON.stringify(activeApprovals));
       
       - name: Read review requirement files
@@ -85,97 +77,52 @@ jobs:
           github-token: ${{ secrets.PR_TOKEN }}
           script: |
             try {
-            const prFiles = JSON.parse('${{ steps.get-approvals.outputs.files }}');
-            console.log('PR Files:', prFiles);
-            
-            // Helper to convert glob to regex
-            function globToRegExp(pattern) {
-              return new RegExp('^' + pattern
-                .replace(/\//g, '\\/') // Escape forward slashes
-                .replace(/\*/g, '[^\\/]*') // * matches anything except path separator
-                .replace(/\?/g, '[^\\/]') + '$'); // ? matches single char except path separator
-            }
-      
-            const parseOwnersFile = async (path) => {
-              const { data: file } = await github.rest.repos.getContent({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                path: path
-              });
+              const prFiles = JSON.parse('${{ steps.get-approvals.outputs.files }}');
               
-              const content = Buffer.from(file.content, 'base64').toString();
-              const relevantOwners = new Set();
+              function globToRegExp(pattern) {
+                return new RegExp('^' + pattern
+                  .replace(/\//g, '\\/')
+                  .replace(/\*/g, '[^\\/]*')
+                  .replace(/\?/g, '[^\\/]') + '$');
+              }
+        
+              const parseOwnersFile = async (path) => {
+                const { data: file } = await github.rest.repos.getContent({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  path: path
+                });
+                
+                const content = Buffer.from(file.content, 'base64').toString();
+                const relevantOwners = new Set();
+                
+                content.split('\n').forEach(line => {
+                  line = line.trim();
+                  if (!line || line.startsWith('#')) return;
+                  
+                  const [pattern, ...owners] = line.split(/\s+/);
+                  const regex = globToRegExp(pattern);
+                  
+                  if (prFiles.some(file => regex.test(file))) {
+                    owners.forEach(owner => relevantOwners.add(owner));
+                  }
+                });
+                
+                return Array.from(relevantOwners);
+              };
+        
+              const codeowners = await parseOwnersFile('.github/CODEOWNERS');
+              const facilitators = await parseOwnersFile('.github/CODEFACILITATORS');
               
-              content.split('\n').forEach(line => {
-                line = line.trim();
-                if (!line || line.startsWith('#')) return;
-                
-                // First part is the pattern, rest is the team(s)
-                const parts = line.split(/\s+/);
-                const pattern = parts[0];
-                const owners = parts.slice(1);
-                
-                // Check if any PR files match this pattern
-                const regex = globToRegExp(pattern);
-                const matches = prFiles.some(file => regex.test(file));
-                
-                if (matches) {
-                  owners.forEach(owner => relevantOwners.add(owner)); // Keep full team name
-                }
-              });
+              core.info('👥 Required reviewers:');
+              core.info(`   Codeowners: ${codeowners.join(', ')}`);
+              core.info(`   Facilitators: ${facilitators.join(', ')}`);
               
-              return Array.from(relevantOwners);
-            };
-      
-            const codeowners = await parseOwnersFile('.github/CODEOWNERS');
-            const facilitators = await parseOwnersFile('.github/CODEFACILITATORS');
-            
-            console.log('Required reviewers:', {
-              codeowners,
-              facilitators,
-              files: prFiles
-            });
-            
-            core.setOutput('requirements', JSON.stringify({
-              codeowners,
-              facilitators
-            }));
+              core.setOutput('requirements', JSON.stringify({ codeowners, facilitators }));
             } catch (error) {
-              console.error('Error parsing input:', error);
-              console.error('Context:', {
-                files: '${{ steps.get-approvals.outputs.files }}'
-              });
+              core.error('❌ Error parsing requirements:', error);
               throw error;
             }
-
-      # - name: Check existing approvals
-      #   if: steps.initial-check.outputs.should_continue == 'true'
-      #   id: check-existing
-      #   uses: actions/github-script@v7
-      #   with:
-      #     github-token: ${{ secrets.PR_TOKEN }}
-      #     script: |
-      #       const activeApprovals = JSON.parse('${{ steps.get-approvals.outputs.approvals }}');
-      #       const requirements = JSON.parse('${{ steps.read-files.outputs.requirements }}');
-            
-      #       console.log('Checking for existing facilitator/tech-team approvals');
-      #       console.log('Active approvals:', activeApprovals);
-      #       console.log('Requirements:', requirements);
-            
-      #       // Check for facilitator approvals
-      #       const hasFacilitatorApproval = activeApprovals.some(user => 
-      #         requirements.facilitators.includes('@' + user)
-      #       );
-            
-      #       console.log('Has facilitator approval:', hasFacilitatorApproval);
-            
-      #       if (hasFacilitatorApproval) {
-      #         console.log('Already has facilitator approval, skipping further checks');
-      #         core.setOutput('should_continue', 'false');
-      #         return;
-      #       }
-            
-      #       core.setOutput('should_continue', 'true');
 
       - name: Check approval status
         if: steps.initial-check.outputs.should_continue == 'true'
@@ -187,51 +134,38 @@ jobs:
             const activeApprovals = JSON.parse('${{ steps.get-approvals.outputs.approvals }}');
             const requirements = JSON.parse('${{ steps.read-files.outputs.requirements }}');
             
-            console.log('Checking approval status');
-            console.log('Active approvals:', activeApprovals);
-            console.log('Requirements:', requirements);
+            core.info('🔍 Checking team approvals...');
 
             const checkTeamApprovals = async (teams, approvers) => {
-              console.log(`Checking teams [${teams.join(', ')}] for approvers [${approvers.join(', ')}]`);
-              
               return Promise.all(
                 teams.map(async team => {
-                  console.log(`\nChecking team ${team}...`);
-                  // Remove @ and split after that
                   const [org, team_slug] = team.replace('@', '').split('/');
-                  console.log(`Parsed organization: ${org}, team: ${team_slug}`);
                   
                   for (const approver of approvers) {
-                    console.log(`- Checking if ${approver} is member of ${team_slug} in ${org}`);
                     try {
                       const { data: membership } = await github.rest.teams.getMembershipForUserInOrg({
-                        org,
-                        team_slug,
-                        username: approver,
+                        org, team_slug, username: approver,
                       });
-                      const isMember = membership.state === 'active';
-                      console.log(`  Result: ${isMember ? '✓ is member' : '× not active member'}`);
-                      if (isMember) return true;
+                      if (membership.state === 'active') {
+                        core.info(`✅ Found approval from ${approver} for ${team}`);
+                        return true;
+                      }
                     } catch (error) {
-                      console.log(`  Result: × ${error.message}`);
+                      core.info(`❌ ${approver} is not a member of ${team}`);
                     }
                   }
-                  console.log(`No approving members found for team ${team}`);
+                  core.info(`❌ No approving members found for ${team}`);
                   return false;
                 })
-              ).then(results => {
-                console.log('\nFinal results:', results);
-                return results.every(Boolean);
-              });
+              ).then(results => results.every(Boolean));
             };
             
             const hasAllCodeownersApproval = await checkTeamApprovals(requirements.codeowners, activeApprovals);
             const hasAllFacilitatorsApproval = await checkTeamApprovals(requirements.facilitators, activeApprovals);
             
-            console.log('Approval status:', {
-              codeownersApproved: hasAllCodeownersApproval,
-              facilitatorsApproved: hasAllFacilitatorsApproval
-            });
+            core.info('📊 Approval status:');
+            core.info(`   Codeowners: ${hasAllCodeownersApproval ? '✅' : '❌'}`);
+            core.info(`   Facilitators: ${hasAllFacilitatorsApproval ? '✅' : '❌'}`);
             
             core.setOutput('status', JSON.stringify({
               codeownersApproved: hasAllCodeownersApproval,
@@ -244,11 +178,12 @@ jobs:
         with:
           script: |
             const pr = context.payload.pull_request;
-            const status = JSON.parse('${{ steps.check-status.outputs.status }}');            
-            console.log('Updating labels based on status:', status);
+            const status = JSON.parse('${{ steps.check-status.outputs.status }}');
+            
+            core.info('🏷️ Updating PR labels...');
             
             if (status.codeownersApproved && !status.facilitatorsApproved) {
-              console.log('Adding ready-for-facilitators label');
+              core.info('   Adding ready-for-facilitators');
               await github.rest.issues.addLabels({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -258,7 +193,6 @@ jobs:
             }
             
             if (status.codeownersApproved && status.facilitatorsApproved) {
-              console.log('Updating labels for tech-team review');
               try {
                 await github.rest.issues.removeLabel({
                   owner: context.repo.owner,
@@ -266,9 +200,9 @@ jobs:
                   issue_number: pr.number,
                   name: 'ready-for-facilitators'
                 });
-                console.log('Removed ready-for-facilitators label');
+                core.info('   Removed ready-for-facilitators');
               } catch (error) {
-                console.log('No facilitators label to remove');
+                core.info('   No facilitators label to remove');
               }
               
               await github.rest.issues.addLabels({
@@ -277,5 +211,5 @@ jobs:
                 issue_number: pr.number,
                 labels: ['ready-for-tech-review']
               });
-              console.log('Added ready-for-tech-review label');
+              core.info('   Added ready-for-tech-review');
             }
