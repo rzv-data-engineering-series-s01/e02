@@ -187,6 +187,7 @@ jobs:
             }));
 
       - name: Update labels
+        id: update-labels
         if: steps.initial-check.outputs.should_continue == 'true'
         uses: actions/github-script@v7
         with:
