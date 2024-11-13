@@ -192,23 +192,35 @@ jobs:
             console.log('Requirements:', requirements);
 
             const checkTeamApprovals = async (teams, approvers) => {
+              console.log(`Checking teams [${teams.join(', ')}] for approvers [${approvers.join(', ')}]`);
+              
               return Promise.all(
                 teams.map(async team => {
+                  console.log(`\nChecking team ${team}...`);
                   for (const approver of approvers) {
+                    const [org, team_slug] = team.split('/');
+                    console.log(`- Checking if ${approver} is member of ${team_slug} in ${org}`);
+                    
                     try {
                       const { data: membership } = await github.rest.teams.getMembershipForUserInOrg({
-                        org: team.split('/')[0].replace('@', ''),
-                        team_slug: team.split('/')[1],
+                        org: org.replace('@', ''),
+                        team_slug: team_slug,
                         username: approver,
                       });
-                      if (membership.state === 'active') return true;
+                      const isMember = membership.state === 'active';
+                      console.log(`  Result: ${isMember ? '✓ is member' : '× not active member'}`);
+                      if (isMember) return true;
                     } catch (error) {
-                      console.log(`Error checking membership for ${approver} in ${team}:`, error.message);
+                      console.log(`  Result: × ${error.message}`);
                     }
                   }
+                  console.log(`No approving members found for team ${team}`);
                   return false;
                 })
-              ).then(results => results.every(Boolean));
+              ).then(results => {
+                console.log('\nFinal results:', results);
+                return results.every(Boolean);
+              });
             };
             
             const hasAllCodeownersApproval = await checkTeamApprovals(requirements.codeowners, activeApprovals);
