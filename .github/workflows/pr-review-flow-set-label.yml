@@ -6,7 +6,8 @@ on:
 
 permissions:
   pull-requests: write    # For managing reviews
-  issues: write          # For labels
+  issues: write           # For labels
+  actions: write          # To trigger another workflow
 
 jobs:
   check-required-reviews:
