@@ -113,6 +113,7 @@ jobs:
         
               const codeowners = await parseOwnersFile('.github/CODEOWNERS');
               const facilitators = await parseOwnersFile('.github/CODEFACILITATORS');
+              const tech = await parseOwnersFile('.github/CODETECHTEAM');
               
               core.info('👥 Required reviewers:');
               core.info(`   Codeowners: ${codeowners.join(', ')}`);
@@ -121,7 +122,7 @@ jobs:
               const requirements = {
                 codeowners,
                 facilitators,
-                tech: ['tech-team']
+                tech
               };
               
               core.setOutput('requirements', JSON.stringify(requirements));
