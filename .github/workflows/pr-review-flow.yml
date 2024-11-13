@@ -88,8 +88,8 @@ jobs:
                   .replace(/\*/g, '[^\\/]*')
                   .replace(/\?/g, '[^\\/]') + '$');
               }
-        
-              const parseOwnersFile = async (path) => {
+          
+              const parseOwnersFile = async (path, isTeamFile = false) => {
                 const { data: file } = await github.rest.repos.getContent({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
@@ -106,23 +106,34 @@ jobs:
                   const [pattern, ...owners] = line.split(/\s+/);
                   const regex = globToRegExp(pattern);
                   
-                  if (prFiles.some(file => regex.test(file))) {
-                    owners.forEach(owner => relevantOwners.add(owner));
+                  if (prFiles.some(file => regex.test(file)) || pattern === '*') {
+                    owners.forEach(owner => {
+                      if (isTeamFile) {
+                        // For team references, extract team name from @org/team-name format
+                        const teamMatch = owner.match(/@[\w-]+\/([\w-]+)/);
+                        if (teamMatch) {
+                          relevantOwners.add(teamMatch[1]);
+                        }
+                      } else {
+                        // For regular users/teams, add as-is
+                        relevantOwners.add(owner.replace('@', ''));
+                      }
+                    });
                   }
                 });
                 
                 return Array.from(relevantOwners);
               };
-        
+          
               const codeowners = await parseOwnersFile('.github/CODEOWNERS');
               const facilitators = await parseOwnersFile('.github/CODEFACILITATORS');
-              const tech = await parseOwnersFile('.github/CODETECHTEAM');
+              const tech = await parseOwnersFile('.github/CODETECHTEAM', true);  // Note the true flag
               
               core.info('👥 Required reviewers:');
               core.info(`   Codeowners: ${codeowners.join(', ')}`);
               core.info(`   Facilitators: ${facilitators.join(', ')}`);
               core.info(`   Tech team: ${tech.join(', ')}`);
-
+              
               const requirements = {
                 codeowners,
                 facilitators,
