@@ -73,6 +73,7 @@ jobs:
             console.log('Active approvals:', activeApprovals);
             
             core.setOutput('files', JSON.stringify(prFilePaths));
+            console.log('Set files output:', JSON.stringify(prFilePaths));
             core.setOutput('approvals', JSON.stringify(activeApprovals));
       
       - name: Read review requirement files
@@ -83,10 +84,13 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           inputs: |
             {
-              "files": "${{ steps.get-approvals.outputs.files }}"
+              "files": ${{ toJSON(steps.get-approvals.outputs.files) }}
             }
           script: |
+            try {
+            console.log('Raw files input:', core.getInput('files'));
             const prFiles = JSON.parse(core.getInput('files'));
+            console.log('Parsed files:', prFiles);
             
             // Helper to convert glob to regex
             function globToRegExp(pattern) {
@@ -140,6 +144,11 @@ jobs:
               codeowners,
               facilitators
             }));
+            } catch (error) {
+              console.error('Error parsing input:', error);
+              console.error('Raw input was:', core.getInput('files'));
+              throw error;
+            }
 
       - name: Check existing approvals
         if: steps.initial-check.outputs.should_continue == 'true'
