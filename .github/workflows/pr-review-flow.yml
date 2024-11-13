@@ -245,7 +245,7 @@ jobs:
 
   add-facilitators:
     needs: check-required-reviews
-    if: contains(github.event.pull_request.labels.*.name, env.LABEL_FACILITATORS)
+    if: contains(github.event.pull_request.labels.*.name, '${{ env.LABEL_FACILITATORS }}')
     runs-on: self-hosted
     steps:    
       - name: "Assign Code Facilitators to PR"
@@ -259,7 +259,7 @@ jobs:
           
   add-tech-team:
     needs: check-required-reviews
-    if: contains(github.event.pull_request.labels.*.name, env.LABEL_TECH_REVIEW)
+    if: contains(github.event.pull_request.labels.*.name, '${{ env.LABEL_TECH_REVIEW }}')
     runs-on: self-hosted
     steps:    
       - name: "Assign tech team to PR"
