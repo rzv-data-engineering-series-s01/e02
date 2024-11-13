@@ -82,15 +82,10 @@ jobs:
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          inputs: |
-            {
-              "files": ${{ toJSON(steps.get-approvals.outputs.files) }}
-            }
           script: |
             try {
-            console.log('Raw files input:', core.getInput('files'));
-            const prFiles = JSON.parse(core.getInput('files'));
-            console.log('Parsed files:', prFiles);
+            const prFiles = JSON.parse('${{ steps.get-approvals.outputs.files }}');
+            console.log('PR Files:', prFiles);
             
             // Helper to convert glob to regex
             function globToRegExp(pattern) {
@@ -146,7 +141,9 @@ jobs:
             }));
             } catch (error) {
               console.error('Error parsing input:', error);
-              console.error('Raw input was:', core.getInput('files'));
+              console.error('Context:', {
+                files: '${{ steps.get-approvals.outputs.files }}'
+              });
               throw error;
             }
 
