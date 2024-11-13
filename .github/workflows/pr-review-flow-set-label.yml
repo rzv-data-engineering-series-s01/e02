@@ -191,34 +191,28 @@ jobs:
             console.log('Active approvals:', activeApprovals);
             console.log('Requirements:', requirements);
 
-            const isTeamMember = async (user, teamSlug) => {
-              try {
-                const [orgName, teamName] = teamSlug.replace('@', '').split('/');
-                const { data: members } = await github.rest.teams.listMembersInOrg({
-                  org: orgName,
-                  team_slug: teamName
-                });
-                return members.some(member => member.login === user);
-              } catch (error) {
-                console.log(`Error checking team membership for ${user} in ${teamSlug}:`, error);
-                return false;
-              }
+            const checkTeamApprovals = async (teams, approvers) => {
+              return Promise.all(
+                teams.map(async team => {
+                  for (const approver of approvers) {
+                    try {
+                      const { data: membership } = await github.rest.teams.getMembershipForUserInOrg({
+                        org: team.split('/')[0].replace('@', ''),
+                        team_slug: team.split('/')[1],
+                        username: approver,
+                      });
+                      if (membership.state === 'active') return true;
+                    } catch (error) {
+                      console.log(`Error checking membership for ${approver} in ${team}:`, error.message);
+                    }
+                  }
+                  return false;
+                })
+              ).then(results => results.every(Boolean));
             };
             
-            // Check if all required CODEOWNERS have approved
-            
-            const hasAllCodeownersApproval = await Promise.all(
-              requirements.codeowners.map(async team => 
-                Promise.any(activeApprovals.map(user => isTeamMember(user, team)))
-              )
-            ).then(results => results.every(Boolean));
-            
-            // Check if all required facilitators have approved
-            const hasAllFacilitatorsApproval = await Promise.all(
-              requirements.facilitators.map(async team => 
-                Promise.any(activeApprovals.map(user => isTeamMember(user, team)))
-              )
-            ).then(results => results.every(Boolean));
+            const hasAllCodeownersApproval = await checkTeamApprovals(requirements.codeowners, activeApprovals);
+            const hasAllFacilitatorsApproval = await checkTeamApprovals(requirements.facilitators, activeApprovals);
             
             console.log('Approval status:', {
               codeownersApproved: hasAllCodeownersApproval,
