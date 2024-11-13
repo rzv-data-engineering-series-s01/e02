@@ -184,7 +184,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const activeApprovals = JSON.parse('${{ steps.get-approvals.outputs.approvals }}');
-            const requirements = JSON.parse('${{ steps.get-approvals.outputs.requirements }}');
+            const requirements = JSON.parse('${{ steps.read-files.outputs.requirements }}');
             
             console.log('Checking approval status');
             console.log('Active approvals:', activeApprovals);
