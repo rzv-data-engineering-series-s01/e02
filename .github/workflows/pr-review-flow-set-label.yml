@@ -197,14 +197,16 @@ jobs:
               return Promise.all(
                 teams.map(async team => {
                   console.log(`\nChecking team ${team}...`);
+                  // Remove @ and split after that
+                  const [org, team_slug] = team.replace('@', '').split('/');
+                  console.log(`Parsed organization: ${org}, team: ${team_slug}`);
+                  
                   for (const approver of approvers) {
-                    const [org, team_slug] = team.split('/');
                     console.log(`- Checking if ${approver} is member of ${team_slug} in ${org}`);
-                    
                     try {
                       const { data: membership } = await github.rest.teams.getMembershipForUserInOrg({
-                        org: org.replace('@', ''),
-                        team_slug: team_slug,
+                        org,
+                        team_slug,
                         username: approver,
                       });
                       const isMember = membership.state === 'active';
