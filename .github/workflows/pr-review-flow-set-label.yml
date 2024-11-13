@@ -68,7 +68,7 @@ jobs:
             });
             console.log('latestReviews:', latestReviews);
             const activeApprovals = Array.from(latestReviews.values())
-              .filter(review => review.state === 'approved')
+              .filter(review => review.state === 'APPROVED')
               .map(review => review.user.login);
             
             console.log('Active approvals:', activeApprovals);
