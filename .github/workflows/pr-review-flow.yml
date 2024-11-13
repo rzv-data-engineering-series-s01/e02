@@ -118,6 +118,7 @@ jobs:
               core.info('👥 Required reviewers:');
               core.info(`   Codeowners: ${codeowners.join(', ')}`);
               core.info(`   Facilitators: ${facilitators.join(', ')}`);
+              core.info(`   Tech team: ${tech.join(', ')}`);
 
               const requirements = {
                 codeowners,
