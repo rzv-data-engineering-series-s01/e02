@@ -9,8 +9,6 @@ permissions:
   issues: write           # For labels
   
 env:
-  LABEL_TECH_REVIEW: 'ready-for-tech-review'
-  LABEL_FACILITATORS: 'ready-for-facilitators-review'
   TEAM_TECH: 'tech-team'
 
 jobs:
@@ -78,8 +76,6 @@ jobs:
         if: steps.initial-check.outputs.should_continue == 'true'
         id: read-files
         uses: actions/github-script@v7
-        env:
-          TEAM_TECH: ${{ env.TEAM_TECH }}
         with:
           github-token: ${{ secrets.PR_TOKEN }}
           script: |
@@ -125,7 +121,7 @@ jobs:
               core.info(`   Codeowners: ${codeowners.join(', ')}`);
               core.info(`   Facilitators: ${facilitators.join(', ')}`);
               
-              core.setOutput('requirements', JSON.stringify({ codeowners, facilitators, [process.env.TEAM_TECH] }));
+              core.setOutput('requirements', JSON.stringify({ codeowners, facilitators, ['tech-team'] }));
             } catch (error) {
               core.error('❌ Error parsing requirements:', error);
               throw error;
@@ -185,9 +181,6 @@ jobs:
       - name: Update labels
         if: steps.initial-check.outputs.should_continue == 'true'
         uses: actions/github-script@v7
-        env:
-          LABEL_FACILITATORS: ${{ env.LABEL_FACILITATORS }}
-          LABEL_TECH_REVIEW: ${{ env.LABEL_TECH_REVIEW }}
         with:
           script: |
             const pr = context.payload.pull_request;
@@ -196,14 +189,13 @@ jobs:
             core.info('🏷️ Updating PR labels...');
             
             if (status.codeownersApproved && !status.facilitatorsApproved) {
-              core.info('   Adding ${process.env.LABEL_FACILITATORS}');
               await github.rest.issues.addLabels({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: pr.number,
-                labels: [process.env.LABEL_FACILITATORS]
+                labels: 'ready-for-facilitators-review'
               });
-              core.info('   Added ${process.env.LABEL_FACILITATORS} label');
+              core.info('   Added ready-for-facilitators-review label');
             }
             
             if (status.codeownersApproved && status.facilitatorsApproved && !status.techApproved) {
@@ -212,9 +204,9 @@ jobs:
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   issue_number: pr.number,
-                  name: process.env.LABEL_FACILITATORS
+                  name: 'ready-for-facilitators-review'
                 });
-                core.info('   Removed ${process.env.LABEL_FACILITATORS} label');
+                core.info('   Removed ready-for-facilitators-review label');
               } catch (error) {
                 core.info('   No facilitators label to remove');
               }
@@ -223,9 +215,9 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: pr.number,
-                labels: [process.env.LABEL_TECH_REVIEW]
+                labels: 'ready-for-tech-review'
               });
-              core.info('   Added ${process.env.LABEL_TECH_REVIEW} label');
+              core.info('   Added ready-for-tech-review label');
             }
             
             if (status.codeownersApproved && status.facilitatorsApproved && status.techApproved) {
@@ -234,18 +226,17 @@ jobs:
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   issue_number: pr.number,
-                  name: process.env.LABEL_TECH_REVIEW
+                  name: 'ready-for-tech-review'
                 });
-                core.info('   Removed ${process.env.LABEL_TECH_REVIEW} label');
+                core.info('   Removed ready-for-tech-review label');
               } catch (error) {
                 core.info('   No tech team label to remove');
               }
-              core.info('   Removed ${process.env.LABEL_TECH_REVIEW} label');
             }
 
   add-facilitators:
     needs: check-required-reviews
-    if: contains(github.event.pull_request.labels.*.name, ${{ env.LABEL_FACILITATORS }})
+    if: contains(github.event.pull_request.labels.*.name, 'ready-for-facilitators-review')
     runs-on: self-hosted
     steps:    
       - name: "Assign Code Facilitators to PR"
@@ -259,14 +250,12 @@ jobs:
           
   add-tech-team:
     needs: check-required-reviews
-    if: contains(github.event.pull_request.labels.*.name, ${{ env.LABEL_TECH_REVIEW }})
+    if: contains(github.event.pull_request.labels.*.name, 'ready-for-tech-review')
     runs-on: self-hosted
     steps:    
       - name: "Assign tech team to PR"
         id: add-tech-team
         uses: actions/github-script@v7
-        env:
-          TEAM_TECH: ${{ env.TEAM_TECH }}
         with:
           github-token: ${{ secrets.PR_TOKEN }}
           script: |            
@@ -275,9 +264,9 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 pull_number: context.payload.pull_request.number,
-                team_reviewers: [process.env.TEAM_TECH]
+                team_reviewers: ['tech-team']
               });
-              console.log('Successfully added ${process.env.TEAM_TECH} as reviewer');
+              console.log('Successfully added tech-team as reviewer');
               
             } catch (error) {
               console.error('Error details:', {
