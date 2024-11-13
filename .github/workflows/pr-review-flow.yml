@@ -7,9 +7,6 @@ on:
 permissions:
   pull-requests: write    # For managing reviews
   issues: write           # For labels
-  
-env:
-  TEAM_TECH: 'tech-team'
 
 jobs:
   check-required-reviews:
