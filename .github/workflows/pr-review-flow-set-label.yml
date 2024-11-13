@@ -153,14 +153,9 @@ jobs:
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          inputs: |
-            {
-              "approvals": "${{ steps.get-approvals.outputs.approvals }}",
-              "requirements": "${{ steps.read-files.outputs.requirements }}"
-            }
           script: |
-            const activeApprovals = JSON.parse(core.getInput('approvals'));
-            const requirements = JSON.parse(core.getInput('requirements'));
+            const activeApprovals = JSON.parse('${{ steps.get-approvals.outputs.approvals }}');
+            const requirements = JSON.parse('${{ steps.get-approvals.outputs.requirements }}');
             
             console.log('Checking for existing facilitator/tech-team approvals');
             console.log('Active approvals:', activeApprovals);
@@ -187,14 +182,9 @@ jobs:
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          inputs: |
-            {
-              "approvals": "${{ steps.get-approvals.outputs.approvals }}",
-              "requirements": "${{ steps.read-files.outputs.requirements }}"
-            }
           script: |
-            const activeApprovals = JSON.parse(core.getInput('approvals'));
-            const requirements = JSON.parse(core.getInput('requirements'));
+            const activeApprovals = JSON.parse('${{ steps.get-approvals.outputs.approvals }}');
+            const requirements = JSON.parse('${{ steps.get-approvals.outputs.requirements }}');
             
             console.log('Checking approval status');
             console.log('Active approvals:', activeApprovals);
