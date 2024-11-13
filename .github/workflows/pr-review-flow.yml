@@ -198,7 +198,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: pr.number,
-                labels: 'ready-for-facilitators-review'
+                labels: ['ready-for-facilitators-review']
               });
               core.info('   Added ready-for-facilitators-review label');
             }
@@ -220,7 +220,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: pr.number,
-                labels: 'ready-for-tech-review'
+                labels: ['ready-for-tech-review']
               });
               core.info('   Added ready-for-tech-review label');
             }
