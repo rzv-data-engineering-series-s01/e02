@@ -216,6 +216,7 @@ jobs:
             }
 
   add-facilitators:
+    needs: check-required-reviews
     if: contains(github.event.pull_request.labels.*.name, 'ready-for-facilitators')
     runs-on: self-hosted
     steps:    
@@ -229,6 +230,7 @@ jobs:
           add_groups_directly: true
           
   add-tech-team:
+    needs: check-required-reviews
     if: contains(github.event.pull_request.labels.*.name, 'ready-for-tech-review')
     runs-on: self-hosted
     steps:    
