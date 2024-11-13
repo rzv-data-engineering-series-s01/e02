@@ -1,8 +1,10 @@
 name: PR Review Flow -- process labels
 
 on:
-  pull_request_target:
-    types: [ labeled, synchronize ]
+  workflow_run:
+    workflows: ["PR Review Flow -- set labels"]
+    types:
+      - completed
 
 permissions:
   pull-requests: write    # For managing reviews
