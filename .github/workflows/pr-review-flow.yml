@@ -2,8 +2,9 @@ name: PR Review Flow
 
 on:
   pull_request_review:
-    types: [submitted, labeled]
-  workflow_dispatch:
+    types: [submitted, labeled, synchronized]
+  pull_request_target:
+    types: [ synchronize ]
 
 permissions:
   pull-requests: write    # For managing reviews
