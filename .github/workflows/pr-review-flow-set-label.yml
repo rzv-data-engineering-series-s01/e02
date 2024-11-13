@@ -216,8 +216,7 @@ jobs:
         with:
           script: |
             const pr = context.payload.pull_request;
-            const status = JSON.parse(core.getInput('status'));
-            
+            const status = JSON.parse('${{ steps.check-status.outputs.status }}');            
             console.log('Updating labels based on status:', status);
             
             if (status.codeownersApproved && !status.facilitatorsApproved) {
