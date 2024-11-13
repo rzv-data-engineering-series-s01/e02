@@ -117,8 +117,14 @@ jobs:
               core.info('👥 Required reviewers:');
               core.info(`   Codeowners: ${codeowners.join(', ')}`);
               core.info(`   Facilitators: ${facilitators.join(', ')}`);
+
+              const requirements = {
+                codeowners,
+                facilitators,
+                tech: ['tech-team']
+              };
               
-              core.setOutput('requirements', JSON.stringify({ codeowners, facilitators, {"tech": ["tech-team"]} }));
+              core.setOutput('requirements', JSON.stringify(requirements));
             } catch (error) {
               core.error('❌ Error parsing requirements:', error);
               throw error;
