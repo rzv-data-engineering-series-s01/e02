@@ -148,37 +148,37 @@ jobs:
               throw error;
             }
 
-      - name: Check existing approvals
-        if: steps.initial-check.outputs.should_continue == 'true'
-        id: check-existing
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const activeApprovals = JSON.parse('${{ steps.get-approvals.outputs.approvals }}');
-            const requirements = JSON.parse('${{ steps.read-files.outputs.requirements }}');
+      # - name: Check existing approvals
+      #   if: steps.initial-check.outputs.should_continue == 'true'
+      #   id: check-existing
+      #   uses: actions/github-script@v7
+      #   with:
+      #     github-token: ${{ secrets.GITHUB_TOKEN }}
+      #     script: |
+      #       const activeApprovals = JSON.parse('${{ steps.get-approvals.outputs.approvals }}');
+      #       const requirements = JSON.parse('${{ steps.read-files.outputs.requirements }}');
             
-            console.log('Checking for existing facilitator/tech-team approvals');
-            console.log('Active approvals:', activeApprovals);
-            console.log('Requirements:', requirements);
+      #       console.log('Checking for existing facilitator/tech-team approvals');
+      #       console.log('Active approvals:', activeApprovals);
+      #       console.log('Requirements:', requirements);
             
-            // Check for facilitator approvals
-            const hasFacilitatorApproval = activeApprovals.some(user => 
-              requirements.facilitators.includes('@' + user)
-            );
+      #       // Check for facilitator approvals
+      #       const hasFacilitatorApproval = activeApprovals.some(user => 
+      #         requirements.facilitators.includes('@' + user)
+      #       );
             
-            console.log('Has facilitator approval:', hasFacilitatorApproval);
+      #       console.log('Has facilitator approval:', hasFacilitatorApproval);
             
-            if (hasFacilitatorApproval) {
-              console.log('Already has facilitator approval, skipping further checks');
-              core.setOutput('should_continue', 'false');
-              return;
-            }
+      #       if (hasFacilitatorApproval) {
+      #         console.log('Already has facilitator approval, skipping further checks');
+      #         core.setOutput('should_continue', 'false');
+      #         return;
+      #       }
             
-            core.setOutput('should_continue', 'true');
+      #       core.setOutput('should_continue', 'true');
 
       - name: Check approval status
-        if: steps.check-existing.outputs.should_continue == 'true'
+        if: steps.initial-check.outputs.should_continue == 'true'
         id: check-status
         uses: actions/github-script@v7
         with:
@@ -190,16 +190,35 @@ jobs:
             console.log('Checking approval status');
             console.log('Active approvals:', activeApprovals);
             console.log('Requirements:', requirements);
+
+            const isTeamMember = async (user, teamSlug) => {
+              try {
+                const [orgName, teamName] = teamSlug.replace('@', '').split('/');
+                const { data: members } = await github.rest.teams.listMembersInOrg({
+                  org: orgName,
+                  team_slug: teamName
+                });
+                return members.some(member => member.login === user);
+              } catch (error) {
+                console.log(`Error checking team membership for ${user} in ${teamSlug}:`, error);
+                return false;
+              }
+            };
             
             // Check if all required CODEOWNERS have approved
-            const hasAllCodeownersApproval = requirements.codeowners.every(owner => 
-              activeApprovals.some(user => '@' + user === owner)
-            );
+            
+            const hasAllCodeownersApproval = await Promise.all(
+              requirements.codeowners.map(async team => 
+                Promise.any(activeApprovals.map(user => isTeamMember(user, team)))
+              )
+            ).then(results => results.every(Boolean));
             
             // Check if all required facilitators have approved
-            const hasAllFacilitatorsApproval = requirements.facilitators.every(facilitator => 
-              activeApprovals.some(user => '@' + user === facilitator)
-            );
+            const hasAllFacilitatorsApproval = await Promise.all(
+              requirements.facilitators.map(async team => 
+                Promise.any(activeApprovals.map(user => isTeamMember(user, team)))
+              )
+            ).then(results => results.every(Boolean));
             
             console.log('Approval status:', {
               codeownersApproved: hasAllCodeownersApproval,
@@ -212,7 +231,7 @@ jobs:
             }));
 
       - name: Update labels
-        if: steps.check-existing.outputs.should_continue == 'true'
+        if: steps.initial-check.outputs.should_continue == 'true'
         uses: actions/github-script@v7
         with:
           script: |
