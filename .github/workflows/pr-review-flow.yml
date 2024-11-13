@@ -108,16 +108,7 @@ jobs:
                   
                   if (prFiles.some(file => regex.test(file)) || pattern === '*') {
                     owners.forEach(owner => {
-                      if (isTeamFile) {
-                        // For team references, extract team name from @org/team-name format
-                        const teamMatch = owner.match(/@[\w-]+\/([\w-]+)/);
-                        if (teamMatch) {
-                          relevantOwners.add(teamMatch[1]);
-                        }
-                      } else {
-                        // For regular users/teams, add as-is
                         relevantOwners.add(owner.replace('@', ''));
-                      }
                     });
                   }
                 });
@@ -164,12 +155,10 @@ jobs:
                   const [org, team_slug] = team.replace('@', '').split('/');
                   
                   for (const approver of approvers) {
-                    core.info('debug >>> approver: ${approver}');
                     try {
                       const { data: membership } = await github.rest.teams.getMembershipForUserInOrg({
                         org, team_slug, username: approver,
                       });
-                      core.info('debug >>> membership: ${membership}');
                       if (membership.state === 'active') {
                         core.info(`✅ Found approval from ${approver} for ${team}`);
                         return true;
