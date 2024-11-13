@@ -10,6 +10,9 @@ permissions:
 
 jobs:
   check-required-reviews:
+    outputs:
+      needs_facilitators: ${{ steps.update-labels.outputs.needs_facilitators }}
+      needs_tech_review: ${{ steps.update-labels.outputs.needs_tech_review }}
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
@@ -201,6 +204,7 @@ jobs:
                 labels: ['ready-for-facilitators-review']
               });
               core.info('   Added ready-for-facilitators-review label');
+              needsFacilitators = true;
             }
             
             if (status.codeownersApproved && status.facilitatorsApproved && !status.techApproved) {
@@ -223,6 +227,7 @@ jobs:
                 labels: ['ready-for-tech-review']
               });
               core.info('   Added ready-for-tech-review label');
+              needsTechReview = true;
             }
             
             if (status.codeownersApproved && status.facilitatorsApproved && status.techApproved) {
@@ -238,10 +243,13 @@ jobs:
                 core.info('   No tech team label to remove');
               }
             }
+            
+            core.setOutput('needs_facilitators', needsFacilitators);
+            core.setOutput('needs_tech_review', needsTechReview);
 
   add-facilitators:
     needs: check-required-reviews
-    if: contains(github.event.pull_request.labels.*.name, 'ready-for-facilitators-review')
+    if: needs.check-required-reviews.outputs.needs_facilitators == 'true'
     runs-on: self-hosted
     steps:    
       - name: "Assign Code Facilitators to PR"
@@ -255,7 +263,7 @@ jobs:
           
   add-tech-team:
     needs: check-required-reviews
-    if: contains(github.event.pull_request.labels.*.name, 'ready-for-tech-review')
+    if: needs.check-required-reviews.outputs.needs_tech_review == 'true'
     runs-on: self-hosted
     steps:    
       - name: "Assign tech team to PR"
