@@ -62,7 +62,7 @@ jobs:
               latestReviews.set(review.user.login, review);
             });
 
-            console.info(`>>>> latestReviews: ${latestReviews.values()}`);
+            console.info(`>>>> latestReviews: ${Array.from(latestReviews.values())}`);
 
             const activeApprovals = Array.from(latestReviews.values())
               .filter(review => review.state === 'APPROVED')
