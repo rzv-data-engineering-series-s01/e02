@@ -1,4 +1,0 @@
-notifications:
-  "area:team-1":
-    channel: "WEBHOOK_REVIEW_TEAM"
-    message: "🔍 New PR ready for review!"
