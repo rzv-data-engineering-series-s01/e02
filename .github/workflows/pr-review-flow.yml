@@ -21,7 +21,7 @@ jobs:
         id: initial-check
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.PR_TOKEN }}
+          github-token: ${{ secrets.PR_REVIEW_TOKEN }}
           script: |
             const review = context.payload.review;
             
@@ -40,7 +40,7 @@ jobs:
         id: get-approvals
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.PR_TOKEN }}
+          github-token: ${{ secrets.PR_REVIEW_TOKEN }}
           script: |
             const pr = context.payload.pull_request;
             
@@ -79,7 +79,7 @@ jobs:
         id: read-files
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.PR_TOKEN }}
+          github-token: ${{ secrets.PR_REVIEW_TOKEN }}
           script: |
             try {
               const prFiles = JSON.parse('${{ steps.get-approvals.outputs.files }}');
@@ -144,7 +144,7 @@ jobs:
         id: check-status
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.PR_TOKEN }}
+          github-token: ${{ secrets.PR_REVIEW_TOKEN }}
           script: |
             const activeApprovals = JSON.parse('${{ steps.get-approvals.outputs.approvals }}');
             const requirements = JSON.parse('${{ steps.read-files.outputs.requirements }}');
@@ -264,7 +264,7 @@ jobs:
         uses: LexxaRRioo/codefacilitators@actually-add-debugging-with-rebuild
         continue-on-error: true
         with:
-          token: ${{ secrets.PR_TOKEN }}
+          token: ${{ secrets.PR_REVIEW_TOKEN }}
           file: .github/CODEFACILITATORS
           add_groups_directly: true
           
@@ -277,7 +277,7 @@ jobs:
         id: add-tech-team
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.PR_TOKEN }}
+          github-token: ${{ secrets.PR_REVIEW_TOKEN }}
           script: |            
             try {              
               await github.rest.pulls.requestReviewers({

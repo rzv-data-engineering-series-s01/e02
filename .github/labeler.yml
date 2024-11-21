@@ -1,4 +1,0 @@
-area:team-1:
-- changed-files:
-  - any-glob-to-any-file:
-    - path_to_functions/*url_to_product.sql
