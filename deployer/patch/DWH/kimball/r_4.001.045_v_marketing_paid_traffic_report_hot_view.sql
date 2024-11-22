@@ -1,0 +1,1 @@
+        WHEN ${ENV_PREFIX}DWH.KIMBALL.UTM_CAMPAIGN_TO_PRODUCT(UTM_CAMPAIGN) = 'Страхование имущества' THEN 'ИФЛ'
