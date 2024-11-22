@@ -1,2 +1,3 @@
 *.md @rzv-data-engineering-series-s01/tech-team
-path_to_functions/*url_to_product.sql @rzv-data-engineering-series-s01/analysts-owners
+deployer/patch/DWH/kimball/r_3*f_utm_campaign_to_product.sql @rzv-data-engineering-series-s01/analysts-owners
+deployer/patch/DWH/kimball/r_3*f_utm_to_financial_channel.sql @rzv-data-engineering-series-s01/analysts-owners
