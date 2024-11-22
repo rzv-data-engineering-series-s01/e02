@@ -135,12 +135,12 @@ class DependencyScanner:
 
                         # Check if this file is another function's definition
                         calling_function_name = function_paths.get(relative_path)
-                            
+
                         if calling_function_name:
-                            self.dependencies[calling_function_name].used_in_functions.add(func_name)
-                            logging.info(
-                                f"Added a dep to func: {func_name}"
+                            self.dependencies[func_name].used_in_functions.add(
+                                calling_function_name
                             )
+                            logging.info(f"Added a dep to func: {func_name}")
                         else:
                             # This is a file using the function
                             self.dependencies[func_name].used_in_files.add(
@@ -161,14 +161,7 @@ class DependencyScanner:
         return raw_deps, flat_deps
 
     def _flatten_dependencies(self) -> Dict:
-        """Flatten function-to-function dependencies by propagating files upward through the dependency chain"""
-        flattened = {}
-
         def get_all_dependent_files(func_name: str, processed: set = None) -> set:
-            """
-            Recursively get all files that depend on this function,
-            including files that depend on functions that use this function
-            """
             if processed is None:
                 processed = set()
 
@@ -176,34 +169,27 @@ class DependencyScanner:
                 return set()
 
             processed.add(func_name)
-
-            # Get direct file dependencies
             all_files = set(
                 Path(p).as_posix() for p in self.dependencies[func_name].used_in_files
             )
 
-            # Get indirect dependencies through other functions
-            for dependent_func in self.dependencies[func_name].used_in_functions:
-                if dependent_func not in processed:
-                    # Add files that directly use the dependent function
-                    all_files.update(
-                        Path(p).as_posix()
-                        for p in self.dependencies[dependent_func].used_in_files
-                    )
-                    # Recursively get files that depend on the dependent function
-                    all_files.update(get_all_dependent_files(dependent_func, processed))
+            # Get files from functions that use this function
+            for using_func_name in self.dependencies[func_name].used_in_functions:
+                all_files.update(
+                    Path(p).as_posix()
+                    for p in self.dependencies[using_func_name].used_in_files
+                )
 
             return all_files
 
-        # Process each function
-        for func_name, dep in self.dependencies.items():
-            flattened[func_name] = {
+        return {
+            func_name: {
                 "type": "function",
                 "path": Path(dep.path).as_posix(),
                 "used_in": {"files": sorted(list(get_all_dependent_files(func_name)))},
             }
-
-        return flattened
+            for func_name, dep in self.dependencies.items()
+        }
 
     def save_results(
         self, output_dir: str, raw_deps: Dict = None, flat_deps: Dict = None
@@ -221,9 +207,10 @@ class DependencyScanner:
         with open(output_path / "flattened_dependencies.json", "w") as f:
             json.dump(flat_deps, f, indent=2)
 
+
 if __name__ == "__main__":
     scanner = DependencyScanner(".")
     raw_deps, flat_deps = scanner.scan_dependencies()
-    
+
     output_dir = Path(__file__).parent
     scanner.save_results(output_dir, raw_deps, flat_deps)

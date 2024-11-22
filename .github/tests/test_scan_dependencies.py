@@ -138,13 +138,17 @@ class TestDependencyScanner(unittest.TestCase):
         scanner = DependencyScanner(str(self.test_dir))
         raw_deps, flat_deps = scanner.scan_dependencies()
 
+        print(f"raw_deps: \n{json.dumps(raw_deps, indent=4)}")
+        print(f"\nflat_deps: \n{json.dumps(flat_deps, indent=4)}")
+
         # Check raw dependencies
         self.assertIn("base_func", raw_deps)
         self.assertIn("middle_func", raw_deps)
         self.assertEqual(len(raw_deps["base_func"]["used_in"]["files"]), 0)
         self.assertEqual(raw_deps["base_func"]["used_in"]["functions"], ["middle_func"])
         self.assertIn(
-            "end_view.sql", Path(raw_deps["middle_func"]["used_in"]["files"][0]).name
+            "end_view.sql",
+            Path(raw_deps["middle_func"]["used_in"]["files"][0]).name,
         )
 
         # Check flattened dependencies - both functions should show end_view.sql as dependent
@@ -153,7 +157,8 @@ class TestDependencyScanner(unittest.TestCase):
         for func in ["base_func", "middle_func"]:
             self.assertEqual(len(flat_deps[func]["used_in"]["files"]), 1)
             self.assertIn(
-                "end_view.sql", Path(flat_deps[func]["used_in"]["files"][0]).name
+                "end_view.sql",
+                Path(flat_deps[func]["used_in"]["files"][0]).name,
             )
 
 
