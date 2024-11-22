@@ -135,14 +135,11 @@ class DependencyScanner:
 
                         # Check if this file is another function's definition
                         calling_function_name = function_paths.get(relative_path)
-
+                            
                         if calling_function_name:
-                            # This is a function-to-function dependency
-                            self.dependencies[func_name].used_in_functions.add(
-                                calling_function_name
-                            )
+                            self.dependencies[calling_function_name].used_in_functions.add(func_name)
                             logging.info(
-                                f"Added a dep to func: {calling_function_name}"
+                                f"Added a dep to func: {func_name}"
                             )
                         else:
                             # This is a file using the function
