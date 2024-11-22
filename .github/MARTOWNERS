@@ -1,0 +1,4 @@
+deployer/patch/DWH/kimball/r_4.*v_marketing_paid_traffic_report_hot_view.sql @rzv-data-engineering-series-s01/market-facilitators
+superset/datasets/kimball/kimball.msb-web-fb_req.sql @rzv-data-engineering-series-s01/market-facilitators
+superset_objects/datasets/CPA-WEB-COSTS.sql @rzv-data-engineering-series-s01/market-facilitators
+superset_objects/datasets/DIM_MFO_FD_WEB_CHANNEL.sql @rzv-data-engineering-series-s01/market-facilitators
