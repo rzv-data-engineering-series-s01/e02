@@ -10,10 +10,10 @@ logging.basicConfig(
 )
 
 def generate_codefacilitators():
-    root = Path(__file__).parent.parent.parent
+    scripts_dir = Path(__file__).parent
+    root = scripts_dir.parent.parent
     
-    logging.info("Reading dependencies")
-    with open(root / "flattened_dependencies.json") as f:
+    with open(scripts_dir / "flattened_dependencies.json") as f:
         deps = json.load(f)
 
     logging.info("Parsing MARTOWNERS patterns") 
