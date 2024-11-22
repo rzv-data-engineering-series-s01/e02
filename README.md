@@ -51,6 +51,8 @@ path_to_functions/3.012356_f_url_to_product.sql
 path_to_functions/anything_url_to_product.sql
 ```
 
+`path_to_functions/` в etl репо это `deployer/patch/DWH/kimball/`
+
 По формату похоже на gitignore, можно назначать несколько команд в одну строку через пробел. Подробнее здесь: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners#codeowners-syntax 
 
 ## Что это и какую проблему решает
