@@ -39,6 +39,7 @@ jobs:
             .github/CODEFACILITATORS
             .github/CODEOWNERS
             .github/CODETECHTEAM
+            .github/MARTOWNERS
         
   check-required-reviews:
     needs: dependencies-scan
