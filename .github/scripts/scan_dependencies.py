@@ -223,3 +223,10 @@ class DependencyScanner:
 
         with open(output_path / "flattened_dependencies.json", "w") as f:
             json.dump(flat_deps, f, indent=2)
+
+if __name__ == "__main__":
+    scanner = DependencyScanner(".")
+    raw_deps, flat_deps = scanner.scan_dependencies()
+    
+    output_dir = Path(__file__).parent
+    scanner.save_results(output_dir, raw_deps, flat_deps)
