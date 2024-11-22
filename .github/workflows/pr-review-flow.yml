@@ -37,7 +37,7 @@ jobs:
           git add .github/scripts/flattened_dependencies.json
           git add .github/CODEFACILITATORS
           git commit -m "Update dependencies for pr review" --allow-empty
-          git push origin ${GITHUB_REF#refs/heads/}
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
         
   check-required-reviews:
     needs: dependencies-scan
