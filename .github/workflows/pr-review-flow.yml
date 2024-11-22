@@ -36,7 +36,7 @@ jobs:
           git add .github/scripts/raw_dependencies.json
           git add .github/scripts/flattened_dependencies.json
           git add .github/CODEFACILITATORS
-          git diff-index --quiet HEAD || git commit -m "Update dependencies"
+          git commit -m "Update dependencies for pr review" --allow-empty
           git push origin HEAD:${GITHUB_HEAD_REF}
         
   check-required-reviews:
