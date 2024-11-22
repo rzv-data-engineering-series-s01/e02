@@ -9,6 +9,36 @@ permissions:
   issues: write           # For labels
 
 jobs:
+  dependencies-scan:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          
+      - name: Install dependencies
+        run: |
+          pip install pandas tqdm
+          
+      - name: Scan dependencies
+        run: python .github/scripts/scan_dependencies.py
+        
+      - name: Generate CODEFACILITATORS
+        run: python .github/scripts/generate_codefacilitators.py
+  
+      - name: Add and commit changes  
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add .github/scripts/raw_dependencies.json
+          git add .github/scripts/flattened_dependencies.json
+          git add .github/CODEFACILITATORS
+          git commit -m "Update dependencies" || echo "No changes to commit"
+          git push origin HEAD:${GITHUB_HEAD_REF}
+        
   check-required-reviews:
     outputs:
       needs_facilitators: ${{ steps.update-labels.outputs.needs_facilitators }}
