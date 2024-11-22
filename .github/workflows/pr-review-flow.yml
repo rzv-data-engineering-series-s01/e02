@@ -14,38 +14,46 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
+      # - name: Set up Python
+      #   uses: actions/setup-python@v5
+      #   with:
+      #     python-version: '3.11'
           
       - name: Install dependencies
         run: |
-          pip install pandas tqdm
+          pip3 install tqdm
           
       - name: Scan dependencies
-        run: python .github/scripts/scan_dependencies.py
+        run: python3 .github/scripts/scan_dependencies.py
         
       - name: Generate CODEFACILITATORS
-        run: python .github/scripts/generate_codefacilitators.py
-  
-      - name: Add and commit changes  
-        run: |
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-          git add .github/scripts/raw_dependencies.json
-          git add .github/scripts/flattened_dependencies.json
-          git add .github/CODEFACILITATORS
-          git commit -m "Update dependencies" || echo "No changes to commit"
-          git push origin HEAD:${GITHUB_HEAD_REF}
+        run: python3 .github/scripts/generate_codefacilitators.py
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: dependencies
+          path: |
+            .github/scripts/raw_dependencies.json
+            .github/scripts/flattened_dependencies.json
+            .github/CODEFACILITATORS
+            .github/CODEOWNERS
+            .github/CODETECHTEAM
         
   check-required-reviews:
+    needs: dependencies-scan
     outputs:
       needs_facilitators: ${{ steps.update-labels.outputs.needs_facilitators }}
       needs_tech_review: ${{ steps.update-labels.outputs.needs_tech_review }}
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
+      
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: dependencies
+          path: .github/
       
       - name: Initial review check
         id: initial-check
@@ -120,37 +128,33 @@ jobs:
                   .replace(/\*/g, '[^\\/]*')
                   .replace(/\?/g, '[^\\/]') + '$');
               }
-          
-              const parseOwnersFile = async (path, isTeamFile = false) => {
-                const { data: file } = await github.rest.repos.getContent({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  path: path
-                });
-                
-                const content = Buffer.from(file.content, 'base64').toString();
-                const relevantOwners = new Set();
-                
-                content.split('\n').forEach(line => {
-                  line = line.trim();
-                  if (!line || line.startsWith('#')) return;
+              
+              const fs = require('fs');
+              
+              const parseOwnersFile = async (path) => {
+                  const content = fs.readFileSync(path, 'utf8');
+                  const relevantOwners = new Set();
                   
-                  const [pattern, ...owners] = line.split(/\s+/);
-                  const regex = globToRegExp(pattern);
+                  content.split('\n').forEach(line => {
+                      line = line.trim();
+                      if (!line || line.startsWith('#')) return;
+                      
+                      const [pattern, ...owners] = line.split(/\s+/);
+                      const regex = globToRegExp(pattern);
+                      
+                      if (prFiles.some(file => regex.test(file)) || pattern === '*') {
+                          owners.forEach(owner => {
+                              relevantOwners.add(owner.replace('@', ''));
+                          });
+                      }
+                  });
                   
-                  if (prFiles.some(file => regex.test(file)) || pattern === '*') {
-                    owners.forEach(owner => {
-                        relevantOwners.add(owner.replace('@', ''));
-                    });
-                  }
-                });
-                
-                return Array.from(relevantOwners);
+                  return Array.from(relevantOwners);
               };
           
               const codeowners = await parseOwnersFile('.github/CODEOWNERS');
               const facilitators = await parseOwnersFile('.github/CODEFACILITATORS');
-              const tech = await parseOwnersFile('.github/CODETECHTEAM', true);  // Note the true flag
+              const tech = await parseOwnersFile('.github/CODETECHTEAM');
               
               core.info('👥 Required reviewers:');
               core.info(`   Codeowners: ${codeowners.join(', ')}`);
