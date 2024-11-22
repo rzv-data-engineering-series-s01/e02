@@ -17,17 +17,17 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.11.9'
           
       - name: Install dependencies
         run: |
-          pip install tqdm
+          pip3 install tqdm
           
       - name: Scan dependencies
-        run: python .github/scripts/scan_dependencies.py
+        run: python3 .github/scripts/scan_dependencies.py
         
       - name: Generate CODEFACILITATORS
-        run: python .github/scripts/generate_codefacilitators.py
+        run: python3 .github/scripts/generate_codefacilitators.py
   
       - name: Add and commit changes  
         run: |
