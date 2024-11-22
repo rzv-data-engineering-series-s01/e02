@@ -40,6 +40,7 @@ jobs:
           git push origin HEAD:${GITHUB_HEAD_REF}
         
   check-required-reviews:
+    needs: dependencies-scan
     outputs:
       needs_facilitators: ${{ steps.update-labels.outputs.needs_facilitators }}
       needs_tech_review: ${{ steps.update-labels.outputs.needs_tech_review }}
